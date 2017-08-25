@@ -31,7 +31,7 @@ class TelaCarrega(Popup):
     title='Carregando'
     def __init__(self, **kwargs):
         super(TelaCarrega, self).__init__(**kwargs)
-        self.content=Image(source='loading.jpg')
+        self.content=Image(source='loading.gif')
 
 #lista com um item pra cada veterinária perto
 class ListaVet(StackLayout):
@@ -224,16 +224,21 @@ class VeteriMarca(MapMarker):
 #por enquanto só faz o request
 #não estou certo do que fazer com essa classe
 class Engine():
-
+    def __init__(self):
+        self.file = open('key.ini', 'r')
+        self.chave = self.file.read().split('\n')
     def requerir_dados(self, lat, lon):
-        url = "https://maps.googleapis.com/maps/api/place/nearbysearch/json?location={!s},{!s}&radius=5000&type=veterinary_care&key=AIzaSyA0BqMBBTXbZy9PjoZyI0WVzwDBYti-fhc".format(str(lat), str(lon))
+        #url = "https://maps.googleapis.com/maps/api/place/nearbysearch/json?location={!s},{!s}&radius=5000&type=veterinary_care&key=AIzaSyA0BqMBBTXbZy9PjoZyI0WVzwDBYti-fhc".format(str(lat), str(lon))
+        url = "https://maps.googleapis.com/maps/api/place/nearbysearch/json?location={!s},{!s}&radius=5000&type=veterinary_care&key={!s}".format(str(lat), str(lon), self.chave[0])
 
         resposta = requests.get(url)
         dados = json.loads(resposta.text)
         return dados['results']
 
     def buscar_detalhes(self, place_id):
-        url ='https://maps.googleapis.com/maps/api/place/details/json?placeid={!s}&key=AIzaSyA0BqMBBTXbZy9PjoZyI0WVzwDBYti-fhc'.format(str(place_id))
+        #url ='https://maps.googleapis.com/maps/api/place/details/json?placeid={!s}&key=AIzaSyA0BqMBBTXbZy9PjoZyI0WVzwDBYti-fhc'.format(str(place_id))
+        url ='https://maps.googleapis.com/maps/api/place/details/json?placeid={!s}&key={!s}'.format(str(place_id), self.chave[0])
+
         texto = requests.get(url)
         dados = json.loads(texto.text)
         return(dados['result'])
