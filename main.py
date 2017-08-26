@@ -59,13 +59,13 @@ class ListaVet(StackLayout):
         distancia = vincenty( (kwargs['lat'], kwargs['lon']),
                               (self.lat, self.lon) ).meters
         if distancia > 100:
-            engine = Engine()
+
             self.lat=kwargs['lat']
             self.lon=kwargs['lon']
-            self.dados = engine.requerir_dados(self.lat, self.lon)
+            self.dados = Engine.requerir_dados(self.lat, self.lon)
             for linha in self.dados:
                 self.height += 80
-                self.add_widget(ItemVet(dados=engine.buscar_detalhes(linha['place_id'])))
+                self.add_widget(ItemVet(dados=Engine.buscar_detalhes(linha['place_id'])))
             self.esperando=False
 
 
@@ -99,7 +99,7 @@ class ListaVet(StackLayout):
 class ItemVet(BoxLayout):
     def on_touch_up(self, touch):
         if self.collide_point(*touch.pos):
-            engine = Engine()
+
             raiz = self.get_root_window()
             #raiz.add_widget(JanelaVet(place_id=self.place_id))
             raiz.add_widget(JanelaVet(dados=self.dados))
@@ -127,11 +127,11 @@ class ItemVet(BoxLayout):
 
 
         #self.add_widget(AsyncImage(source=self.dados['icon']))
-        engine=Engine()
+
         if 'rating' in self.dados:
-            self.add_widget( Image(source = engine.avaliar(rank = self.dados['rating'])) )
+            self.add_widget( Image(source = Engine.avaliar(rank = self.dados['rating'])) )
         else:
-            self.add_widget( Image(source = engine.avaliar(rank = 0)) )
+            self.add_widget( Image(source = Engine.avaliar(rank = 0)) )
         print(self.dados.keys())
         self.add_widget(Label(text=self.dados['name'].encode('utf-8').strip(),
                         text_size=(self.width * 3, None)))
@@ -205,12 +205,16 @@ class JanelaVet(BoxLayout):
         self.bind(pos=self.update_rect,size=self.update_rect)
         self.size_hint=(.8, .6)
         self.pos_hint={'center_x':.5, 'center_y':.5}
-        engine = Engine()
+
         #dados = self.buscar_detalhes(kwargs['place_id'])
         dados=kwargs['dados']
         self.add_widget(Label(font_size=24, text=dados['name'].encode('utf-8').strip()))
         #self.add_widget(Label(font_size=24, text=str(dados['rating']), size_hint_y=.05))
-        self.add_widget( Image(source = engine.avaliar(rank = dados['rating'])) )
+        if 'rating' in dados:
+            self.add_widget( Image(source = Engine.avaliar(rank = dados['rating'])) )
+        else:
+            self.add_widget( Image(source = Engine.avaliar(rank = 0)) )
+
         self.add_widget(Label(font_size=24, text=dados['formatted_phone_number'].encode('utf-8').strip()))
         self.add_widget(Label(font_size=24, text=dados['formatted_address'].encode('utf-8').strip(),
                                 text_size=(self.width * 3, None)))
@@ -219,23 +223,20 @@ class JanelaVet(BoxLayout):
 class VeteriMarca(MapMarker):
     def on_touch_up(self, touch):
         if self.collide_point(*touch.pos):
-            engine = Engine()
+
             raiz = self.get_root_window()
             #raiz.add_widget(JanelaVet(place_id=self.place_id))
-            raiz.add_widget(JanelaVet(dados=engine.buscar_detalhes(self.place_id)))
+            raiz.add_widget(JanelaVet(dados=Engine.buscar_detalhes(self.place_id)))
 
     def __init__(self,  **kwargs):
         super(VeteriMarca, self).__init__(**kwargs)
         self.place_id = kwargs['place_id']
 
-#por enquanto só faz o request
-#não estou certo do que fazer com essa classe
+#classe com métodos estáticos com múltiplas utilizações
 class Engine():
-    def __init__(self):
-        self.file = open('key.ini', 'r')
-        self.chave = self.file.read().split('\n')
 
-    def avaliar(self, **kwargs):
+    @staticmethod
+    def avaliar(**kwargs):
         if kwargs['rank'] == 0:
             return ''
         elif 0 < kwargs['rank'] < 1:
@@ -259,14 +260,20 @@ class Engine():
         elif kwargs['rank'] == 5:
             return 'rating/5.png'
 
-    def requerir_dados(self, lat, lon):
-        url = "https://maps.googleapis.com/maps/api/place/nearbysearch/json?location={!s},{!s}&radius=5000&type=veterinary_care&key={!s}".format(str(lat), str(lon), self.chave[0])
+    @staticmethod
+    def requerir_dados(lat, lon):
+        file = open('key.ini', 'r')
+        chave = file.read().split('\n')
+        url = "https://maps.googleapis.com/maps/api/place/nearbysearch/json?location={!s},{!s}&radius=5000&type=veterinary_care&key={!s}".format(str(lat), str(lon), chave[0])
         resposta = requests.get(url)
         dados = json.loads(resposta.text)
         return dados['results']
 
-    def buscar_detalhes(self, place_id):
-        url ='https://maps.googleapis.com/maps/api/place/details/json?placeid={!s}&key={!s}'.format(str(place_id), self.chave[0])
+    @staticmethod
+    def buscar_detalhes(place_id):
+        file = open('key.ini', 'r')
+        chave = file.read().split('\n')
+        url ='https://maps.googleapis.com/maps/api/place/details/json?placeid={!s}&key={!s}'.format(str(place_id), chave[0])
         texto = requests.get(url)
         dados = json.loads(texto.text)
         return(dados['result'])
@@ -283,7 +290,7 @@ class MapaCidade(MapView):
             self.lat=kwargs['lat']
             self.lon=kwargs['lon']
             self.center_on(kwargs['lat'], kwargs['lon'])
-            self.adicionar_marcas(self.engine.requerir_dados(self.lat, self.lon ))
+            self.adicionar_marcas(Engine.requerir_dados(self.lat, self.lon ))
             self.minha_pos.lat=self.lat
             self.minha_pos.lon=self.lon
 
@@ -296,7 +303,7 @@ class MapaCidade(MapView):
 
     def __init__(self, **kwargs):
         super(MapaCidade, self).__init__(**kwargs)
-        self.engine = Engine()
+
         try:
             gps.configure(on_location=self.on_location)
         except NotImplementedError:
