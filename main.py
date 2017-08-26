@@ -31,7 +31,7 @@ class TelaCarrega(Popup):
     title='Carregando'
     def __init__(self, **kwargs):
         super(TelaCarrega, self).__init__(**kwargs)
-        self.content=Image(source='loading.gif')
+        self.content=Image(source='loading.png')
 
 #lista com um item pra cada veterinária perto
 class ListaVet(StackLayout):
@@ -64,7 +64,7 @@ class ListaVet(StackLayout):
             self.lon=kwargs['lon']
             self.dados = engine.requerir_dados(self.lat, self.lon)
             for linha in self.dados:
-                self.height += 50
+                self.height += 80
                 self.add_widget(ItemVet(dados=engine.buscar_detalhes(linha['place_id'])))
             self.esperando=False
 
@@ -126,7 +126,13 @@ class ItemVet(BoxLayout):
         self.height = 80
 
 
-        self.add_widget(AsyncImage(source=self.dados['icon']))
+        #self.add_widget(AsyncImage(source=self.dados['icon']))
+        engine=Engine()
+        if 'rating' in self.dados:
+            self.add_widget( Image(source = engine.avaliar(rank = self.dados['rating'])) )
+        else:
+            self.add_widget( Image(source = engine.avaliar(rank = 0)) )
+        print(self.dados.keys())
         self.add_widget(Label(text=self.dados['name'].encode('utf-8').strip(),
                         text_size=(self.width * 3, None)))
 
@@ -199,11 +205,12 @@ class JanelaVet(BoxLayout):
         self.bind(pos=self.update_rect,size=self.update_rect)
         self.size_hint=(.8, .6)
         self.pos_hint={'center_x':.5, 'center_y':.5}
-
+        engine = Engine()
         #dados = self.buscar_detalhes(kwargs['place_id'])
         dados=kwargs['dados']
         self.add_widget(Label(font_size=24, text=dados['name'].encode('utf-8').strip()))
-        self.add_widget(Label(font_size=24, text=str(dados['rating']), size_hint_y=.05))
+        #self.add_widget(Label(font_size=24, text=str(dados['rating']), size_hint_y=.05))
+        self.add_widget( Image(source = engine.avaliar(rank = dados['rating'])) )
         self.add_widget(Label(font_size=24, text=dados['formatted_phone_number'].encode('utf-8').strip()))
         self.add_widget(Label(font_size=24, text=dados['formatted_address'].encode('utf-8').strip(),
                                 text_size=(self.width * 3, None)))
@@ -227,18 +234,39 @@ class Engine():
     def __init__(self):
         self.file = open('key.ini', 'r')
         self.chave = self.file.read().split('\n')
-    def requerir_dados(self, lat, lon):
-        #url = "https://maps.googleapis.com/maps/api/place/nearbysearch/json?location={!s},{!s}&radius=5000&type=veterinary_care&key=AIzaSyA0BqMBBTXbZy9PjoZyI0WVzwDBYti-fhc".format(str(lat), str(lon))
-        url = "https://maps.googleapis.com/maps/api/place/nearbysearch/json?location={!s},{!s}&radius=5000&type=veterinary_care&key={!s}".format(str(lat), str(lon), self.chave[0])
 
+    def avaliar(self, **kwargs):
+        if kwargs['rank'] == 0:
+            return ''
+        elif 0 < kwargs['rank'] < 1:
+            return 'rating/meio.png'
+        elif kwargs['rank'] == 1:
+            return 'rating/1.png'
+        elif 1 < kwargs['rank'] < 2:
+            return 'rating/1_meio.png'
+        elif kwargs['rank'] == 2:
+            return 'rating/2.png'
+        elif 2 < kwargs['rank'] < 3:
+            return 'rating/2_meio.png'
+        elif kwargs['rank'] == 3:
+            return 'rating/3.png'
+        elif 3 < kwargs['rank'] < 4:
+            return 'rating/3_meio'
+        elif kwargs['rank'] == 4:
+            return 'rating/4.png'
+        elif 4 < kwargs['rank'] < 5:
+            return 'rating/4_meio.png'
+        elif kwargs['rank'] == 5:
+            return 'rating/5.png'
+
+    def requerir_dados(self, lat, lon):
+        url = "https://maps.googleapis.com/maps/api/place/nearbysearch/json?location={!s},{!s}&radius=5000&type=veterinary_care&key={!s}".format(str(lat), str(lon), self.chave[0])
         resposta = requests.get(url)
         dados = json.loads(resposta.text)
         return dados['results']
 
     def buscar_detalhes(self, place_id):
-        #url ='https://maps.googleapis.com/maps/api/place/details/json?placeid={!s}&key=AIzaSyA0BqMBBTXbZy9PjoZyI0WVzwDBYti-fhc'.format(str(place_id))
         url ='https://maps.googleapis.com/maps/api/place/details/json?placeid={!s}&key={!s}'.format(str(place_id), self.chave[0])
-
         texto = requests.get(url)
         dados = json.loads(texto.text)
         return(dados['result'])
