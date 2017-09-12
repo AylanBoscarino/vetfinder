@@ -15,8 +15,10 @@ from kivy.utils import get_color_from_hex as rgb
 from kivy.graphics import *
 from kivy.factory import Factory
 from kivy.core.window import Window
+from kivy.animation import Animation
 from geopy.distance import vincenty
 from plyer import gps
+
 
 import requests, json
 import platform
@@ -64,13 +66,15 @@ class ListaVet(StackLayout):
             self.lon=kwargs['lon']
             self.dados = Engine.requerir_dados(self.lat, self.lon)
             for linha in self.dados:
-                self.height += 80
-                self.add_widget(ItemVet(dados=Engine.buscar_detalhes(linha['place_id'])))
+                self.height += 500
+                self.add_widget(ItemVet(dados=linha))
             self.esperando=False
 
 
     def __init__(self, **kwargs):
         super(ListaVet, self).__init__(**kwargs)
+        self.size_hint = (1., None)
+        self.height = 80
         with self.canvas.before:
             Color(1, 1, 1, 1)
 
@@ -88,21 +92,40 @@ class ListaVet(StackLayout):
             print('não conectou')
         gps.start(1000, 0)
 
+        self.add_widget(Label(size_hint=(1., None), height=80))
         #dados = self.requerir_dados(self.lat, self.lon)
 
-        self.size_hint = (1., None)
-        self.height = 80
-        self.add_widget(Label(size_hint=(1., None), height=80))
 
 
 #item de veterinária que fica na lista :p
 class ItemVet(BoxLayout):
-    def on_touch_up(self, touch):
-        if self.collide_point(*touch.pos):
+    def normalizar(self):
+        self.clear_widgets()
+        anim = Animation(size=(self.width, 80), duration=.3)
+        anim.start(self)
+        #time.sleep(.3)
 
-            raiz = self.get_root_window()
-            #raiz.add_widget(JanelaVet(place_id=self.place_id))
-            raiz.add_widget(JanelaVet(dados=self.dados))
+        if self.tem_imagem:
+            self.add_widget(AsyncImage(source=self.imagem_add))
+        else:
+            self.add_widget(AsyncImage(source=self.icone))
+
+        self.add_widget(Label(color=(0,0,0,1),
+                        text=self.nome.encode('utf-8').strip(),
+                        text_size=(self.width * 3, None)))
+
+
+
+
+    def on_touch_up(self, touch):
+
+        if self.collide_point(*touch.pos):
+            if self.height < 500:
+                anim = Animation(size=(self.width, 500), duration=.3)
+                #self.height = 500
+                self.clear_widgets()
+                self.add_widget(Engine.abre_janela_vet(place_id=self.dados['place_id']))
+                anim.start(self)
 
     def update_rect(self, *args):
         self.rect.pos = self.pos
@@ -116,25 +139,21 @@ class ItemVet(BoxLayout):
             self.rect = Rectangle(pos=self.center, size=(self.width/2,
                                                          self.height/2))
         self.bind(pos=self.update_rect,size=self.update_rect)
-        self.dados = kwargs['dados']
-        #self.nome = dados['name']
+        dados = kwargs['dados']
+        if 'imagem' in kwargs:
+            self.tem_imagem = True
+            self.imagem_add = kwargs['imagem']
+        else:
+            self.tem_imagem = False
+        self.dados = dados
+        self.nome = dados['name']
         #self.rating = dados['rating']
         #self.telefone = dados['formatted_phone_number']
         #self.endereco = dados['formatted_address']
-        #self.icone = dados['icon']
+        self.icone = dados['icon']
         self.size_hint = (1., None)
         self.height = 80
-
-
-        #self.add_widget(AsyncImage(source=self.dados['icon']))
-
-        if 'rating' in self.dados:
-            self.add_widget( Image(source = Engine.avaliar(rank = self.dados['rating'])) )
-        else:
-            self.add_widget( Image(source = Engine.avaliar(rank = 0)) )
-        print(self.dados.keys())
-        self.add_widget(Label(text=self.dados['name'].encode('utf-8').strip(),
-                        text_size=(self.width * 3, None)))
+        self.normalizar()
 
 
 #Layout que carrega mapa ou lista
@@ -157,11 +176,6 @@ class Layout_Pagina(RelativeLayout):
     def __init__(self, **kwargs):
         super(Layout_Pagina, self).__init__(**kwargs)
         root = self.get_parent_window()
-        #######
-
-        #######
-
-
 
         if kwargs['parametro'] == 'mapa':
             self.esperando = True
@@ -179,21 +193,26 @@ class Layout_Pagina(RelativeLayout):
             self.add_widget(self.scrollview)
             self.esperando=False
         self.add_widget(Button(size_hint=(.2, .08), pos_hint={'x':0, 'y':.92},
-                text='VOLTAR', on_release=self.close))
+                background_normal='logos/back_normal.png',
+                background_down='logos/back_press.png', on_release=self.close))
+
+
+
 
 #janelinha na frente do mapa com as informações da veterinária clicada
 #note que ao clicar no mapa a janela some
-class JanelaVet(BoxLayout):
-    orientation='vertical'
+class JanelaVet(StackLayout):
+    orientation='tb-lr'
+
+    def on_touch_down(self, touch):
+        if self.collide_point(*touch.pos):
+            if touch.is_double_tap:
+                self.parent.set_normaliza()
 
     def update_rect(self, *args):
         self.rect.pos = self.pos
         self.rect.size = self.size
 
-    def on_touch_down(self, touch):
-        if not self.collide_point(*touch.pos):
-            raiz = self.get_root_window()
-            raiz.remove_widget(self)
 
     def __init__(self,  **kwargs):
         super(JanelaVet, self).__init__(**kwargs)
@@ -203,21 +222,65 @@ class JanelaVet(BoxLayout):
                                                          self.height/2))
 
         self.bind(pos=self.update_rect,size=self.update_rect)
-        self.size_hint=(.8, .6)
+        self.size_hint=(1, None)
+        self.height = 1000
         self.pos_hint={'center_x':.5, 'center_y':.5}
 
         #dados = self.buscar_detalhes(kwargs['place_id'])
         dados=kwargs['dados']
-        self.add_widget(Label(font_size=24, text=dados['name'].encode('utf-8').strip()))
+        self.add_widget(Label(size_hint=(1, None), height=100, font_size=24, text=dados['name'].encode('utf-8').strip()))
         #self.add_widget(Label(font_size=24, text=str(dados['rating']), size_hint_y=.05))
-        if 'rating' in dados:
-            self.add_widget( Image(source = Engine.avaliar(rank = dados['rating'])) )
-        else:
-            self.add_widget( Image(source = Engine.avaliar(rank = 0)) )
+        if 'photos' in dados:
 
-        self.add_widget(Label(font_size=24, text=dados['formatted_phone_number'].encode('utf-8').strip()))
-        self.add_widget(Label(font_size=24, text=dados['formatted_address'].encode('utf-8').strip(),
+            self.add_widget(AsyncImage(size_hint=(1, None), height=300, source = Engine.requerir_foto(dados['photos'][0]['photo_reference'])))
+        if 'rating' in dados:
+            self.add_widget( Image(size_hint=(1, None), height=100, source = Engine.avaliar(rank = dados['rating'])) )
+        else:
+            self.add_widget( Image(size_hint=(1, None), height=100, source = Engine.avaliar(rank = 0)) )
+
+        self.add_widget(Label(size_hint=(1, None), height=100, font_size=24, text=dados['formatted_phone_number'].encode('utf-8').strip()))
+        self.add_widget(Label(size_hint=(1, None), height=100, font_size=24, text=dados['formatted_address'].encode('utf-8').strip(),
                                 text_size=(self.width * 3, None)))
+
+
+class JanelaMapa(StackLayout):
+    orientation='tb-lr'
+    def on_touch_down(self, touch):
+        if not self.collide_point(*touch.pos):
+            self.parent.remove_widget(self)
+
+    def update_rect(self, *args):
+        self.rect.pos = self.pos
+        self.rect.size = self.size
+
+    def __init__(self, **kwargs):
+        super(JanelaMapa, self).__init__(**kwargs)
+        #self.size_hint(1, 1)
+
+        with self.canvas:
+            Color(0.0, 0.4980392156862745, 0.5333333333333333, 1)
+            self.rect = Rectangle(pos=self.center, size=(self.width/2,
+                                                         self.height/2))
+
+        self.bind(pos=self.update_rect,size=self.update_rect)
+        self.pos_hint={'center_x':.5, 'center_y':.5}
+
+        #dados = self.buscar_detalhes(kwargs['place_id'])
+        dados=kwargs['dados']
+        self.add_widget(Label(size_hint=(1, None), height=100, font_size=24, text=dados['name'].encode('utf-8').strip()))
+        #self.add_widget(Label(font_size=24, text=str(dados['rating']), size_hint_y=.05))
+        if 'photos' in dados:
+
+            self.add_widget(AsyncImage(size_hint=(1, None), height=300, source = Engine.requerir_foto(dados['photos'][0]['photo_reference'])))
+        if 'rating' in dados:
+            self.add_widget( Image(size_hint=(1, None), height=100, source = Engine.avaliar(rank = dados['rating'])) )
+        else:
+            self.add_widget( Image(size_hint=(1, None), height=100, source = Engine.avaliar(rank = 0)) )
+
+        self.add_widget(Label(size_hint=(1, None), height=100, font_size=24, text=dados['formatted_phone_number'].encode('utf-8').strip()))
+        self.add_widget(Label(size_hint=(1, None), height=100, font_size=24, text=dados['formatted_address'].encode('utf-8').strip(),
+                                text_size=(self.width * 3, None)))
+
 
 #a marcação no mapa que representa uma veterinária
 class VeteriMarca(MapMarker):
@@ -225,15 +288,43 @@ class VeteriMarca(MapMarker):
         if self.collide_point(*touch.pos):
 
             raiz = self.get_root_window()
-            #raiz.add_widget(JanelaVet(place_id=self.place_id))
-            raiz.add_widget(JanelaVet(dados=Engine.buscar_detalhes(self.place_id)))
+            #raiz.add_widget(JanelaVet(dados=Engine.buscar_detalhes(self.place_id)))
+            raiz.add_widget(Engine.abre_janela_mapa(dados=self.place_id))
 
     def __init__(self,  **kwargs):
         super(VeteriMarca, self).__init__(**kwargs)
         self.place_id = kwargs['place_id']
 
+class JanelaScroll(ScrollView):
+    def set_normaliza(self):
+
+        self.parent.normalizar()
+
+    def on_touch_down(self, touch):
+        if self.collide_point(*touch.pos):
+            pass
+        else:
+            raiz = self.get_root_window()
+            raiz.remove_widget(self)
+
+    def __init__(self,  **kwargs):
+        super(JanelaScroll, self).__init__(**kwargs)
+
 #classe com métodos estáticos com múltiplas utilizações
 class Engine():
+
+    @staticmethod
+    def abre_janela_vet(**kwargs):
+        content = JanelaVet(dados=Engine.buscar_detalhes(kwargs['place_id']))
+        content.bind(minimum_height=content.setter('height'))
+        scrollview = JanelaScroll(size_hint=(.8, None), height=500, pos_hint={'center_x':.5, 'center_y':.5})
+        scrollview.do_scroll_x = False
+        scrollview.add_widget(content)
+        return scrollview
+
+    @staticmethod
+    def abre_janela_mapa(**kwargs):
+        return JanelaMapa(dados=Engine.buscar_detalhes(kwargs['dados']), size_hint=(.8, .8))
 
     @staticmethod
     def avaliar(**kwargs):
@@ -259,6 +350,13 @@ class Engine():
             return 'rating/4_meio.png'
         elif kwargs['rank'] == 5:
             return 'rating/5.png'
+
+    @staticmethod
+    def requerir_foto(reference):
+        file = open('key.ini', 'r')
+        chave = file.read().split('\n')
+        url = 'https://maps.googleapis.com/maps/api/place/photo?maxheight=300&photoreference={!s}&key={!s}'.format(reference, chave[0])
+        return url
 
     @staticmethod
     def requerir_dados(lat, lon):
@@ -299,7 +397,7 @@ class MapaCidade(MapView):
             self.add_marker(VeteriMarca(lat=linha['geometry']['location']['lat'],
                                       lon=linha['geometry']['location']['lng'],
                                       place_id=linha['place_id'],
-                                      source='mini_icon.png'))
+                                      source='logos/Logo-Vet-2-Peq.png'))
 
     def __init__(self, **kwargs):
         super(MapaCidade, self).__init__(**kwargs)
@@ -331,10 +429,12 @@ class Raiz(FloatLayout):
         super(Raiz, self).__init__(**kwargs)
 
         self.add_widget(Button(size_hint=(.2, .1), pos_hint={'x':0, 'y':.9},
-                text='MAPA', on_release=self.abre_mapa))
+                background_normal='logos/map_normal.png',
+                background_down='logos/map_press.png', on_release=self.abre_mapa))
 
         self.add_widget(Button(size_hint=(.2, .1), pos_hint={'x':0, 'y':.8},
-                text='LISTA', on_release=self.abre_lista))
+                background_normal='logos/list_normal.png',
+                background_down='logos/list_press.png', on_release=self.abre_lista))
 #Classe do app :)
 class IVetApp(App):
     def build(self):

@@ -1,10 +1,10 @@
 [app]
 
 # (str) Title of your application
-title = iVeterinary
+title = VetFinder
 
 # (str) Package name
-package.name = ivet
+package.name = vetfinder
 
 # (str) Package domain (needed for android/ios packaging)
 package.domain = boscarino.app
@@ -46,10 +46,10 @@ requirements = kivy,hostpython2,futures,requests,openssl,git+https://github.com/
 garden_requirements = mapview
 
 # (str) Presplash of the application
-#presplash.filename = %(source.dir)s/data/presplash.png
+presplash.filename = ./logos/Logo-Vet-2-Extended-Grand.png
 
 # (str) Icon of the application
-#icon.filename = %(source.dir)s/data/icon.png
+icon.filename = ./logos/Logo-Vet-2-Grand-NS.png
 
 # (str) Supported orientation (one of landscape, portrait or all)
 orientation = portrait
