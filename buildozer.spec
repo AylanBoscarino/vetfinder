@@ -28,7 +28,7 @@ source.include_exts = py,png,jpg,kv,atlas,gif,ini
 #source.exclude_patterns = license,images/*/*.jpg
 
 # (str) Application versioning (method 1)
-version = 0.1
+version = 01.00
 
 # (str) Application versioning (method 2)
 # version.regex = __version__ = ['"](.*)['"]
@@ -46,7 +46,7 @@ requirements = kivy,hostpython2,futures,requests,openssl,git+https://github.com/
 garden_requirements = mapview
 
 # (str) Presplash of the application
-presplash.filename = ./logos/Logo-Vet-2-Extended-Grand.png
+presplash.filename = ./logos/Logo-Vet-2-Extended-Grand-NS.png
 
 # (str) Icon of the application
 icon.filename = ./logos/Logo-Vet-2-Grand-NS.png
@@ -82,7 +82,7 @@ fullscreen = 0
 # red, blue, green, black, white, gray, cyan, magenta, yellow, lightgray,
 # darkgray, grey, lightgrey, darkgrey, aqua, fuchsia, lime, maroon, navy,
 # olive, purple, silver, teal.
-#android.presplash_color = #FFFFFF
+android.presplash_color = #FFFFFF
 
 # (list) Permissions
 android.permissions = INTERNET,ACCESS_FINE_LOCATION,ACCESS_COARSE_LOCATION

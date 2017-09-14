@@ -19,18 +19,22 @@ from kivy.animation import Animation
 from geopy.distance import vincenty
 from plyer import gps
 
-
+import gc
 import requests, json
 import platform
 import time, threading
 
 #CODE BELOW
 Window.clearcolor = (1, 1, 1, 1)
-class Veterinaria:
-    pass
+class LayerVeterinarias(MarkerMapLayer):
+    def __init__(self, **kwargs):
+        super(self, LayerVeterinarias).__init__(**kwargs)
+
+
 #exibe uma tela de carregando com uma mensagem fofa
 class TelaCarrega(Popup):
     title='Carregando'
+
     def __init__(self, **kwargs):
         super(TelaCarrega, self).__init__(**kwargs)
         self.content=Image(source='loading.png')
@@ -112,7 +116,7 @@ class ItemVet(BoxLayout):
 
         self.add_widget(Label(color=(0,0,0,1),
                         text=self.nome.encode('utf-8').strip(),
-                        text_size=(self.width * 3, None)))
+                        text_size=(250, None)))
 
 
 
@@ -134,8 +138,8 @@ class ItemVet(BoxLayout):
     def __init__(self, **kwargs):
         super(ItemVet, self).__init__(**kwargs)
         with self.canvas.before:
-            Color(0.14901960784313725, 0.807843137254902, 0.8509803921568627, 1)
-
+            #Color(0.14901960784313725, 0.807843137254902, 0.8509803921568627, 1)
+            Color(0.9, 0.9, 0.9)
             self.rect = Rectangle(pos=self.center, size=(self.width/2,
                                                          self.height/2))
         self.bind(pos=self.update_rect,size=self.update_rect)
@@ -171,6 +175,11 @@ class Layout_Pagina(RelativeLayout):
     def close(self, *args):
         gps.stop()
         app = App.get_running_app()
+        if self.meu_mapa:
+
+            self.meu_mapa.unload()
+        self.clear_widgets()
+
         app.root.remove_widget(self)
 
     def __init__(self, **kwargs):
@@ -182,7 +191,8 @@ class Layout_Pagina(RelativeLayout):
             self.show_popup()
             meufio = threading.Thread(target=self.tempo_espera)
             meufio.start()
-            self.add_widget(MapaCidade())
+            self.meu_mapa = MapaCidade()
+            self.add_widget(self.meu_mapa)
             self.esperando=False
         elif kwargs['parametro'] == 'lista':
             self.content = ListaVet()
@@ -192,7 +202,7 @@ class Layout_Pagina(RelativeLayout):
             self.scrollview.add_widget(self.content)
             self.add_widget(self.scrollview)
             self.esperando=False
-        self.add_widget(Button(size_hint=(.2, .08), pos_hint={'x':0, 'y':.92},
+        self.add_widget(Button(size_hint=(.3, .1), pos_hint={'x':0, 'y':.92},
                 background_normal='logos/back_normal.png',
                 background_down='logos/back_press.png', on_release=self.close))
 
@@ -393,11 +403,16 @@ class MapaCidade(MapView):
             self.minha_pos.lon=self.lon
 
     def adicionar_marcas(self, dados, camada=None):
+        camada = MarkerMapLayer()
+        self.add_layer(camada)
+
         for linha in dados:
             self.add_marker(VeteriMarca(lat=linha['geometry']['location']['lat'],
                                       lon=linha['geometry']['location']['lng'],
                                       place_id=linha['place_id'],
-                                      source='logos/Logo-Vet-2-Peq.png'))
+                                      source='logos/Logo-Vet-2-Peq.png'),
+                                      layer=camada)
+        #print(self.camada.children)
 
     def __init__(self, **kwargs):
         super(MapaCidade, self).__init__(**kwargs)
@@ -428,11 +443,11 @@ class Raiz(FloatLayout):
     def __init__(self, **kwargs):
         super(Raiz, self).__init__(**kwargs)
 
-        self.add_widget(Button(size_hint=(.2, .1), pos_hint={'x':0, 'y':.9},
+        self.add_widget(Button(size_hint=(.3, .2), pos_hint={'x':0, 'y':.8},
                 background_normal='logos/map_normal.png',
                 background_down='logos/map_press.png', on_release=self.abre_mapa))
 
-        self.add_widget(Button(size_hint=(.2, .1), pos_hint={'x':0, 'y':.8},
+        self.add_widget(Button(size_hint=(.3, .2), pos_hint={'x':0, 'y':.6},
                 background_normal='logos/list_normal.png',
                 background_down='logos/list_press.png', on_release=self.abre_lista))
 #Classe do app :)
